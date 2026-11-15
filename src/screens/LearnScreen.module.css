@@ -1,0 +1,259 @@
+/* Экран «Заучивание». Поле ввода и кнопки лежат в потоке страницы, а не в нижней панели:
+   на iPhone клавиатура закрывает прижатые к низу элементы. */
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-surface-2);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 4px;
+}
+
+.stage {
+  color: var(--color-muted);
+  font-size: var(--text-s);
+}
+
+/* Вопрос */
+.prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  text-align: center;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: calc(var(--radius) + 6px);
+  box-shadow: 0 2px 0 var(--color-border);
+}
+
+.promptTerm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+}
+
+.promptDef {
+  font-size: 1.75rem;
+  line-height: 1.3;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.promptLabel {
+  color: var(--color-muted);
+  font-size: var(--text-s);
+}
+
+.kanji {
+  font-family: var(--font-jp);
+  font-size: var(--text-kanji);
+  line-height: 1.15;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.kanjiSmall {
+  font-family: var(--font-jp);
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.reading {
+  font-family: var(--font-jp);
+  font-size: var(--text-reading);
+  color: var(--color-muted);
+}
+
+/* Варианты ответа */
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.option:active:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.option:disabled {
+  cursor: default;
+}
+
+.optionDef {
+  font-size: var(--text-l);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.optionTerm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.optionRight {
+  background: var(--color-ok-bg);
+  border-color: var(--color-ok);
+}
+
+.optionWrong {
+  background: var(--color-again-bg);
+  border-color: var(--color-again);
+}
+
+.optionDim {
+  opacity: 0.55;
+}
+
+/* Ввод */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.input {
+  min-height: 60px;
+  font-size: max(20px, 1.25rem);
+  text-align: center;
+  scroll-margin-top: var(--space-4);
+}
+
+.hintBox {
+  padding: var(--space-3);
+  border: 1.5px solid var(--color-again);
+  background: var(--color-again-bg);
+  border-radius: var(--radius-s);
+}
+
+.dontKnow {
+  align-self: stretch;
+}
+
+/* Результат ответа */
+.feedback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  border: 1.5px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+
+.feedbackOk {
+  background: var(--color-ok-bg);
+  border-color: var(--color-ok);
+}
+
+.feedbackBad {
+  background: var(--color-again-bg);
+  border-color: var(--color-again);
+}
+
+.feedbackTitle {
+  font-weight: 700;
+  font-size: var(--text-l);
+}
+
+.given {
+  color: var(--color-muted);
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.answerTerm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+}
+
+.answerDef {
+  font-size: var(--text-l);
+  font-weight: 600;
+}
+
+.example {
+  font-family: var(--font-jp);
+  color: var(--color-muted);
+}
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Итог и пустая очередь */
+.summary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.summaryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.summaryBig {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.wide {
+  align-self: stretch;
+}
+
+/* Результат показан, поле остаётся в разметке (и в фокусе), но не редактируется. */
+.inputLocked {
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+}

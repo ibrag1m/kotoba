@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Page } from '../components/Page';
 import { CardRow } from '../components/CardRow';
 import { db } from '../db/db';
 import { deleteDeck, getDeck, listCards } from '../db/repo';
+import { loadLearnInfo } from '../db/learnRepo';
 import { plural } from '../core/format';
 import { attempt, deleteDeckErrorText } from '../core/errors';
 import ui from '../styles/ui.module.css';
+import s from './DeckScreen.module.css';
 
 export function DeckScreen() {
   const { id = '' } = useParams();
@@ -15,6 +17,13 @@ export function DeckScreen() {
   // null: колоды нет; undefined: ещё грузится.
   const deck = useLiveQuery(async () => (await getDeck(db, id)) ?? null, [id]);
   const cards = useLiveQuery(() => listCards(db, id), [id]);
+  // Срок повторения наступает и без правок базы: раз в минуту пересчитываем счётчики «к повторению».
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const learn = useLiveQuery(() => loadLearnInfo(db, id, Date.now()), [id, tick]);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -60,16 +69,31 @@ export function DeckScreen() {
           <Link to={`/deck/${deck.id}/import`} className={ui.btn}>
             Добавить слова
           </Link>
-          <Link
-            to={`/deck/${deck.id}/cards`}
-            className={`${ui.btn} ${ui.primary}`}
-            aria-disabled={cards.length === 0}
-          >
+          <Link to={`/deck/${deck.id}/cards`} className={ui.btn} aria-disabled={cards.length === 0}>
             Карточки
           </Link>
         </>
       }
     >
+      <section className={ui.item} aria-label="Заучивание">
+        <dl className={s.counters}>
+          <div>
+            <dt>Новые сегодня</dt>
+            <dd data-testid="count-new">{learn ? learn.queue.fresh.length : '…'}</dd>
+          </div>
+          <div>
+            <dt>К повторению</dt>
+            <dd data-testid="count-due">{learn ? learn.queue.due.length : '…'}</dd>
+          </div>
+        </dl>
+        <Link
+          to={`/deck/${deck.id}/learn`}
+          className={`${ui.btn} ${ui.primary} ${s.learnBtn}`}
+          aria-disabled={cards.length === 0}
+        >
+          Заучивание
+        </Link>
+      </section>
       {cards.length === 0 ? (
         <div className={ui.empty}>
           <p>В колоде пока нет слов.</p>

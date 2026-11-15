@@ -40,6 +40,8 @@ export type AnswerDirectionSetting = (typeof ANSWER_DIRECTIONS)[number];
 
 /** Пределы настроек: их же проверяет импорт копии. */
 export const DAILY_NEW_LIMIT_MAX = 1000;
+/** Лимит новых карточек в день по умолчанию (раздел 3 архитектуры). */
+export const DEFAULT_DAILY_NEW_LIMIT = 20;
 export const VOICE_KEY_MAX_LENGTH = 64;
 export const VOICE_VALUE_MAX_LENGTH = 64;
 export const VOICE_MAX_ENTRIES = 200;

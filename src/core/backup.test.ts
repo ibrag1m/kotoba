@@ -241,6 +241,82 @@ describe('отклонение плохих файлов', () => {
   });
 });
 
+describe('журнал «Заучивания»: mode, direction и prev', () => {
+  /** Файл с двумя записями журнала режима «learn»: по одной на каждое направление. */
+  function withLearnReviews(): BackupFile {
+    const f = structuredClone(V1_FIXTURE);
+    const base = f.reviews[0]!;
+    const after = { ...base.prev, state: 'learning' as const, reps: 1, lastReview: NOW - 1000, due: NOW + 600_000, stability: 2.3065, difficulty: 6.5 };
+    const reviews = [
+      { ...base, id: 1, mode: 'learn' as const, direction: 'term-to-def' as const, rating: 3 as const, durationMs: 2500, prev: base.prev },
+      { ...base, id: 2, mode: 'learn' as const, direction: 'def-to-term' as const, rating: 1 as const, ts: base.ts + 1000, durationMs: 0, prev: after },
+    ];
+    return buildBackup({ ...f, reviews, now: NOW, appVersion: '0.1.0', dbSchemaVersion: 1 });
+  }
+
+  it('круг экспорт → импорт сохраняет direction, mode, rating, длительность и prev (в том числе lastReview)', () => {
+    const f = withLearnReviews();
+    const r = parseBackup(serializeBackup(f));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.backup).toStrictEqual(f);
+      expect(r.backup.reviews.map((x) => x.direction)).toEqual(['term-to-def', 'def-to-term']);
+      expect(r.backup.reviews.map((x) => x.mode)).toEqual(['learn', 'learn']);
+      expect(r.backup.reviews[1]).toMatchObject({ rating: 1, durationMs: 0, prev: { state: 'learning', reps: 1, lastReview: NOW - 1000 } });
+      expect(r.backup.reviews[0]?.prev.state).toBe('new');
+      expect(r.backup.reviews[0]?.prev).not.toHaveProperty('lastReview');
+    }
+  });
+
+  it('запись без direction (старые данные) читается; direction: null считается отсутствующим', () => {
+    const o = raw();
+    expect(o.reviews[0]).not.toHaveProperty('direction');
+    expect(parseBackup(text(o)).ok).toBe(true);
+    o.reviews[0].direction = null;
+    const r = parseBackup(text(o));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.backup.reviews[0]).not.toHaveProperty('direction');
+  });
+
+  it('неверное значение direction отклоняет файл с понятным сообщением и номером записи', () => {
+    for (const bad of ['sideways', 'TERM-TO-DEF', '', 1, true, ['term-to-def'], {}]) {
+      const o = JSON.parse(serializeBackup(withLearnReviews()));
+      o.reviews[1].direction = bad;
+      const r = parseBackup(text(o));
+      expect(r.ok).toBe(false);
+      if (!r.ok) {
+        expect(r.code).toBe('structure');
+        expect(r.details.join(' ')).toContain('direction');
+        expect(r.details.join(' ')).toContain('запись 2');
+      }
+    }
+  });
+
+  it('неизвестный mode отклоняет файл; mode «review» допустим', () => {
+    const o = JSON.parse(serializeBackup(withLearnReviews()));
+    o.reviews[0].mode = 'test';
+    expectError(text(o), 'structure');
+    o.reviews[0].mode = 'review';
+    expect(parseBackup(text(o)).ok).toBe(true);
+  });
+
+  it('prev обязателен и проверяется в записи режима «learn»', () => {
+    const o = JSON.parse(serializeBackup(withLearnReviews()));
+    delete o.reviews[0].prev;
+    expectError(text(o), 'structure');
+    const o2 = JSON.parse(serializeBackup(withLearnReviews()));
+    o2.reviews[1].prev.state = 'unknown';
+    expectError(text(o2), 'structure');
+  });
+
+  it('при слиянии direction и mode переходят в записи для вставки', () => {
+    const f = withLearnReviews();
+    const plan = planMerge(f, { deckIds: new Set(), cardIds: new Set() });
+    expect(plan.reviews.map((x) => x.direction)).toEqual(['term-to-def', 'def-to-term']);
+    expect(plan.reviews.every((x) => x.mode === 'learn')).toBe(true);
+  });
+});
+
 describe('мусор и расширения, которые не должны ломать импорт', () => {
   it('лишние поля везде игнорируются, известные данные читаются полностью', () => {
     const o = raw();

@@ -57,6 +57,15 @@ describe('экспорт: три способа', () => {
     expect(out).not.toContain('недоступно');
   });
 
+  it('когда «Поделиться» доступно: объяснено, что откроется и где искать файл', () => {
+    const out = html(createElement(BackupExportView, baseExport));
+    expect(out).toContain('Откроется меню «Поделиться». Выберите «Сохранить в Файлы»');
+    expect(out).toContain('«Файлы» → «На iPhone»');
+    expect(out).toContain('iCloud Drive');
+    const unavailable = html(createElement(BackupExportView, { ...baseExport, canShare: false }));
+    expect(unavailable).not.toContain('Откроется меню');
+  });
+
   it('когда файлы через «Поделиться» недоступны: кнопки нет, есть пояснение', () => {
     const out = html(createElement(BackupExportView, { ...baseExport, canShare: false }));
     expect(out).not.toContain('Поделиться (сохранить');

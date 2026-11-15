@@ -4,6 +4,7 @@ import { DeckNew } from './screens/DeckNew';
 import { DeckScreen } from './screens/DeckScreen';
 import { ImportScreen } from './screens/ImportScreen';
 import { CardsScreen } from './screens/CardsScreen';
+import { LearnScreen } from './screens/LearnScreen';
 import { DiagScreen } from './screens/DiagScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { UpdateBanner, useUpdateAvailable } from './components/UpdateBanner';
@@ -21,6 +22,7 @@ export function App() {
           <Route path="/deck/:id" element={<DeckScreen />} />
           <Route path="/deck/:id/import" element={<ImportScreen />} />
           <Route path="/deck/:id/cards" element={<CardsScreen />} />
+          <Route path="/deck/:id/learn" element={<LearnScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />
           <Route path="/diag" element={<DiagScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />

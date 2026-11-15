@@ -76,6 +76,12 @@ export function BackupExportView(p: BackupExportViewProps) {
           {p.preparing ? PREPARING : 'Скопировать текстом'}
         </button>
       </div>
+      {p.canShare !== false && (
+        <p className={ui.hint}>
+          Откроется меню «Поделиться». Выберите «Сохранить в Файлы»: файл будет в приложении «Файлы» → «На iPhone» или
+          в iCloud Drive.
+        </p>
+      )}
       {p.canShare === false && (
         <p className={ui.hint}>
           Меню «Поделиться» с файлом на этом устройстве недоступно. Используйте скачивание или копирование текстом.

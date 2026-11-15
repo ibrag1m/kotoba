@@ -177,10 +177,14 @@ describe('подготовка копии заранее (М5/М6)', () => {
     const k = kit();
     await ready(k);
     const [deck] = await db.decks.toArray();
+    // Скорость записей в базу зависит от загрузки машины, поэтому сначала пишем,
+    // а уведомления о них подаём подряд без пауз: иначе тест зависит от таймеров.
+    const seqs: number[] = [];
     for (const term of ['一', '二', '三']) {
       await addCards(db, deck!.id, [{ term, definition: term }]);
-      k.ctl.dataChanged(await readChangeSeq(db));
+      seqs.push(await readChangeSeq(db));
     }
+    for (const seq of seqs) k.ctl.dataChanged(seq);
     await vi.waitFor(() => expect(k.ctl.getState().preparing).toBe(false));
     expect(k.createSnapshot).toHaveBeenCalledTimes(2);
   });
