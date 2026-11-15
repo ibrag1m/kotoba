@@ -1,0 +1,47 @@
+/*
+ * Полоса в потоке документа над страницей (не fixed и не sticky), поэтому ничего не перекрывает:
+ * ни стрелку «назад», ни панель действий снизу. Отступ сверху учитывает вырез iPhone.
+ */
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: calc(var(--space-2) + var(--safe-top)) max(var(--space-4), var(--safe-right)) var(--space-2)
+    max(var(--space-4), var(--safe-left));
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--text-s);
+}
+
+.text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.button {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1.5px solid var(--color-primary-text);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  font-size: var(--text-s);
+  cursor: pointer;
+}
+
+.button:active {
+  filter: brightness(0.9);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Страницы ниже баннера: вырез уже учтён баннером, второй раз отступ сверху не нужен. */
+.below {
+  --safe-top: 0px;
+}

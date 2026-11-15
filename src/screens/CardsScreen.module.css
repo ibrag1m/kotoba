@@ -1,0 +1,100 @@
+.toolbar {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.toolbar > * {
+  flex: 1 1 auto;
+}
+
+.card {
+  flex: 1;
+  min-height: 18rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: calc(var(--radius) + 6px);
+  box-shadow: 0 2px 0 var(--color-border);
+  cursor: pointer;
+  text-align: center;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.card:active {
+  filter: brightness(0.97);
+}
+
+.face {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+.backTerm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.kanji {
+  font-family: var(--font-jp);
+  font-size: var(--text-kanji);
+  line-height: 1.15;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.reading {
+  font-family: var(--font-jp);
+  font-size: var(--text-reading);
+  color: var(--color-muted);
+}
+
+.definition {
+  font-size: 1.75rem;
+  line-height: 1.3;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.example {
+  font-family: var(--font-jp);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.tapHint {
+  color: var(--color-muted);
+  font-size: var(--text-s);
+}
+
+.summary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.summaryBig {
+  font-size: var(--text-xl);
+  font-weight: 700;
+}

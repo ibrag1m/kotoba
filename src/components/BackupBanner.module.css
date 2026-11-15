@@ -1,0 +1,23 @@
+/* Напоминание о копии: обычный блок в потоке страницы, ничего не перекрывает. */
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--color-again);
+  border-radius: var(--radius);
+  background: var(--color-again-bg);
+}
+
+.text {
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.actions > * {
+  flex: 1;
+}

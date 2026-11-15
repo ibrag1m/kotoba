@@ -1,0 +1,67 @@
+# Публикация на GitHub Pages при каждом обновлении ветки main.
+# Включается один раз вручную: Settings -> Pages -> Source: "GitHub Actions".
+# Адрес приложения: https://<логин>.github.io/<имя репозитория>/
+# Путь в адресе задаётся в vite.config.ts (base, по умолчанию /kotoba/) и должен совпадать с именем репозитория.
+# Номера версий действий (v4, v3) ниже указаны по памяти и не сверялись с актуальными: проверить при первой публикации.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Права по умолчанию минимальные: только чтение кода. Запись в Pages выдана только задаче deploy ниже.
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Адрес приложения https://<логин>.github.io/kotoba/ и данные на телефонах (IndexedDB привязана
+      # к адресу) зависят от имени репозитория. Переименование молча сменило бы адрес и стёрло бы данные.
+      - name: Проверить имя репозитория (должно быть kotoba)
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          if [ "$REPO_NAME" != "kotoba" ]; then
+            echo "::error title=Имя репозитория изменено::Репозиторий называется '$REPO_NAME', а должен называться 'kotoba'. Смена имени меняет адрес приложения и стирает данные на телефонах (IndexedDB привязана к адресу). Верните имя 'kotoba' либо осознанно переезжайте: сделайте резервную копию на телефоне, поменяйте base в vite.config.ts и эту проверку."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
+        env:
+          # Имя репозитория берётся автоматически, чтобы base совпадал с адресом Pages.
+          BASE_PATH: /${{ github.event.repository.name }}/
+      - run: npm run verify:dist
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # Только эта задача может писать в Pages и получать токен OIDC.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,17 @@
+.wrap {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: calc(var(--space-5) + var(--safe-top)) max(var(--space-4), var(--safe-right))
+    calc(var(--space-5) + var(--safe-bottom)) max(var(--space-4), var(--safe-left));
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+}

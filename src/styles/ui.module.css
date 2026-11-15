@@ -1,0 +1,218 @@
+/* Общие элементы интерфейса: страница, шапка, кнопки, поля, списки. */
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding-left: max(var(--space-4), var(--safe-left));
+  padding-right: max(var(--space-4), var(--safe-right));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: calc(var(--space-3) + var(--safe-top));
+  padding-bottom: var(--space-3);
+  min-height: calc(var(--tap) + var(--safe-top));
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: calc(var(--space-2) * -1);
+  border-radius: var(--radius-s);
+  font-size: var(--text-l);
+  text-decoration: none;
+  color: var(--color-primary);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 0;
+}
+
+.headerExtra {
+  color: var(--color-muted);
+  font-size: var(--text-s);
+  white-space: nowrap;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-5);
+}
+
+/* Панель действий, прижатая к низу экрана с учётом индикатора «домой». */
+.actionBar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0 calc(var(--space-3) + var(--safe-bottom));
+  background: linear-gradient(to bottom, transparent, var(--color-bg) 24%);
+}
+
+.actionBar > * {
+  flex: 1;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: var(--text-m);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.btn:active {
+  filter: brightness(0.94);
+}
+
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+
+.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.ok {
+  background: var(--color-ok-bg);
+  border-color: var(--color-ok);
+  color: var(--color-ok);
+}
+
+.again {
+  background: var(--color-again-bg);
+  border-color: var(--color-again);
+  color: var(--color-again);
+}
+
+.danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  background: transparent;
+}
+
+.small {
+  min-height: 44px;
+  font-size: var(--text-s);
+  padding: 0 var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--color-muted);
+  font-size: var(--text-s);
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.textarea {
+  min-height: 11rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+
+.itemLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  min-height: var(--tap);
+}
+
+.itemLink:active {
+  filter: brightness(0.95);
+}
+
+.itemTitle {
+  font-weight: 700;
+  font-size: var(--text-l);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+.empty {
+  text-align: center;
+  color: var(--color-muted);
+  padding: var(--space-6) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.sectionTitle {
+  font-size: var(--text-l);
+  font-weight: 700;
+}
