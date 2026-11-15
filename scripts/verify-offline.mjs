@@ -44,10 +44,19 @@ if (!existsSync(join(dist, 'sw.js'))) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
+// Какие именно проверки не прошли: печатается в конце, чтобы сбой не терялся среди сотни строк «ок».
+// Повторов нет: первый же провал означает провал всего запуска.
+const failedChecks = [];
+let phase = 'запуск';
 const check = (cond, msg, extra = '') => {
   console.log(`  ${cond ? 'ок   ' : 'ОШИБКА'}: ${msg}${extra ? ` (${extra})` : ''}`);
-  if (!cond) failures++;
+  if (!cond) {
+    failures++;
+    failedChecks.push(`[${phase}] ${msg}${extra ? ` (${extra})` : ''}`);
+  }
 };
+// Состояние второй фазы для разбора сбоя: что и чем было отдано, какие запросы упали.
+const diag = { requests: null, failed: null };
 
 // ---------- статический сервер ----------
 const TYPES = {
@@ -138,11 +147,22 @@ async function launchChrome() {
 }
 // Chrome запускает много процессов (GPU, сеть, рендереры). Простой p.kill() оставляет их работать
 // и держать профиль, поэтому на Windows убиваем всё дерево процессов.
-async function killChrome() {
+async function killChrome(cdp = null) {
   if (!chrome) return;
   const p = chrome;
   chrome = null;
   const done = new Promise((r) => p.once('exit', r));
+  // Сначала штатное закрытие по DevTools Protocol: браузер успевает сбросить IndexedDB и кеш service worker на диск.
+  // Жёсткое убийство сразу после последней записи могло оставить профиль неполным (подозрение на редкий сбой
+  // второй фазы). Если браузер не закрылся за 5 с, ниже его всё равно убивает taskkill.
+  if (cdp) {
+    try {
+      await Promise.race([cdp.send('Browser.close'), sleep(1500)]);
+    } catch {
+      /* соединение закрылось вместе с браузером: это нормально */
+    }
+    await Promise.race([done, sleep(5000)]);
+  }
   if (process.platform === 'win32' && p.pid) {
     spawnSync('taskkill', ['/pid', String(p.pid), '/T', '/F'], { stdio: 'ignore' });
   } else {
@@ -221,6 +241,8 @@ const clickText = (text, tag = 'button,a') => `(() => {
   return true;
 })()`;
 const bodyText = `document.body.innerText`;
+// Строки со сроками оценок из текста страницы: попадают в сообщение, если проверка не прошла.
+const previewLines = (text) => text.split(/\r?\n/).filter((l) => /через/.test(l)).join(' | ');
 
 async function open(wsUrl) {
   const cdp = new Cdp(wsUrl);
@@ -253,6 +275,7 @@ async function main() {
   await startServer();
 
   // ===== Фаза 1: онлайн =====
+  phase = 'фаза 1';
   console.log('Фаза 1: онлайн, первая загрузка');
   let cdp = await open(await launchChrome());
   await cdp.send('Page.navigate', { url: `http://127.0.0.1:${appPort}${BASE}` });
@@ -318,19 +341,21 @@ async function main() {
   t = await cdp.waitFor(`document.body.innerText.includes('1 / 1') ? document.body.innerText : null`, 'повтор только «ещё учу»');
   check(t.includes('食べる'), 'в новом круге осталась карточка «食べる»');
 
-  // Диагностика онлайн
+  // Диагностика онлайн. Ждём и статус «загружена», и список оценок: статус виден сразу (модель уже загружена при
+  // запуске), а список появляется на тик позже; без второго условия проверка оценок читала страницу до списка.
   await cdp.eval(`location.hash = '#/diag'`);
-  t = await cdp.waitFor(`document.body.innerText.includes('FSRS-6: загружена') ? document.body.innerText : null`, 'FSRS-6 загружена (онлайн)');
-  check(/Хорошо: через 10 мин/.test(t) && /Легко: через 8 дн\./.test(t), 'preview оценок: 10 мин и 8 дн.');
+  t = await cdp.waitFor(`(document.body.innerText.includes('FSRS-6: загружена') && document.body.innerText.includes('Легко: через')) ? document.body.innerText : null`, 'FSRS-6 загружена и список оценок показан (онлайн)');
+  check(/Хорошо: через 10 мин/.test(t) && /Легко: через 8 дн\./.test(t), 'preview оценок: 10 мин и 8 дн.', previewLines(t));
   t = await cdp.waitFor(`/карточек 4/.test(document.body.innerText) ? document.body.innerText : null`, 'диагностика: данные базы');
   check(t.includes('версия схемы 1 (ожидается 1)'), 'версия схемы базы 1');
   await shot(cdp, '7-diag');
   check(/карточек 4/.test(t), 'в базе 4 карточки');
 
+  await killChrome(cdp);
   cdp.close();
-  await killChrome();
 
   // ===== Фаза 2: сервер остановлен, браузер перезапущен =====
+  phase = 'фаза 2';
   console.log('Фаза 2: сервер остановлен, браузер перезапущен (офлайн)');
   await stopServer();
   let reachable = true;
@@ -344,6 +369,8 @@ async function main() {
   cdp = await open(await launchChrome());
   const requests = new Map();
   const failed = [];
+  diag.requests = requests;
+  diag.failed = failed;
   cdp.on((msg) => {
     if (msg.method === 'Network.responseReceived') {
       requests.set(msg.params.response.url, { fromSW: msg.params.response.fromServiceWorker, status: msg.params.response.status });
@@ -364,9 +391,9 @@ async function main() {
   check(t.includes('食べる'), 'офлайн: режим «Карточки» работает');
 
   await cdp.eval(`location.hash = '#/diag'`);
-  t = await cdp.waitFor(`document.body.innerText.includes('FSRS-6: загружена') ? document.body.innerText : null`, 'FSRS-6 загружена офлайн', 20000);
+  t = await cdp.waitFor(`(document.body.innerText.includes('FSRS-6: загружена') && document.body.innerText.includes('Легко: через')) ? document.body.innerText : null`, 'FSRS-6 загружена и список оценок показан офлайн', 20000);
   check(true, 'офлайн: планировщик FSRS-6 загружен (асинхронная модель)');
-  check(/Снова: через 1 мин/.test(t) && /Трудно: через 6 мин/.test(t) && /Хорошо: через 10 мин/.test(t) && /Легко: через 8 дн\./.test(t), 'офлайн: preview оценок посчитан');
+  check(/Снова: через 1 мин/.test(t) && /Трудно: через 6 мин/.test(t) && /Хорошо: через 10 мин/.test(t) && /Легко: через 8 дн\./.test(t), 'офлайн: preview оценок посчитан', previewLines(t));
 
   const fsrsReq = [...requests.entries()].filter(([u]) => /\/assets\/fsrs-6-[^/]+\.js$/.test(u));
   check(fsrsReq.length === 1 && fsrsReq[0][1].fromSW === true && fsrsReq[0][1].status === 200, 'чанк модели FSRS-6 запрошен офлайн и отдан service worker-ом', fsrsReq[0]?.[0]);
@@ -374,15 +401,16 @@ async function main() {
   check(notFromSW.length === 0, 'офлайн: ни один файл приложения не пришёл мимо service worker-а', notFromSW.map(([u]) => u).join(', '));
   check(failed.length === 0, 'офлайн: нет неудавшихся сетевых запросов', JSON.stringify(failed.map((f) => f.errorText)));
 
+  await killChrome(cdp);
   cdp.close();
-  await killChrome();
 }
 
 try {
   await main();
 } catch (e) {
   failures++;
-  console.error('СБОЙ:', e.message);
+  failedChecks.push(`[${phase}] исключение: ${e.message}`);
+  console.error(`СБОЙ (${phase}):`, e.message);
 } finally {
   await killChrome();
   if (server?.listening) await stopServer();
@@ -391,6 +419,17 @@ try {
     rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
   } catch (e) {
     console.warn(`Не удалось удалить временный профиль ${profile}: ${e.message}`);
+  }
+}
+if (failures > 0) {
+  console.log('');
+  console.log('Не прошли проверки:');
+  for (const f of failedChecks) console.log(`  - ${f}`);
+  if (diag.requests) {
+    console.log('Запросы второй фазы (отдан ли service worker-ом, статус, адрес):');
+    for (const [u, r] of diag.requests) console.log(`  ${r.fromSW ? 'SW   ' : 'СЕТЬ '} ${r.status} ${u}`);
+    const failedList = (diag.failed ?? []).map((f) => ({ type: f.type, error: f.errorText, canceled: f.canceled }));
+    console.log(`Неудавшиеся запросы: ${JSON.stringify(failedList)}`);
   }
 }
 console.log(failures === 0 ? '\nОфлайн-проверка пройдена.' : `\nОфлайн-проверка НЕ пройдена: ошибок ${failures}`);

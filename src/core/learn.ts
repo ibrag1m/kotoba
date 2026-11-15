@@ -10,7 +10,14 @@
 //    «слишком легко» = 4 (легко). Движок сам ничего не пишет: next() и undo() возвращают завершения и откаты,
 //    а запись в базу делает вызывающий код (src/db/learnRepo.ts);
 //  - состояние неизменяемое; каждый ответ запоминает состояние «до», поэтому undo() откатывает шаг целиком.
-import { checkDefinitionAnswer, checkTermAnswer, japaneseForms, normalizeDefinition, normalizeJapanese } from './answerCheck';
+import {
+  checkDefinitionAnswer,
+  checkTermAnswer,
+  definitionVariants,
+  japaneseForms,
+  normalizeDefinition,
+  normalizeJapanese,
+} from './answerCheck';
 import { shuffle } from './shuffle';
 import type { Rng } from './shuffle';
 import type { CardPhase, Rating } from './srs';
@@ -220,30 +227,60 @@ function japaneseKeys(c: LearnCard): Set<string> {
 
 /**
  * Совпадает ли с верной карточкой СТОРОНА ВОПРОСА: тогда другая карточка тоже была бы верным ответом.
- * Перевод → слово: совпал нормализованный перевод. Слово → перевод: совпали term или reading (きれい и 美しい
- * с одним переводом отличаются по вопросу; а два слова «はし» с разными переводами неразличимы по вопросу).
+ * Перевод → слово: пересеклись варианты перевода (через «,» «;» «/», с пояснениями в скобках и без): «красивый» и
+ * «красивый; чистый» отвечают на один вопрос. Слово → перевод: совпали term или reading (きれい и 美しい с одним
+ * переводом отличаются по вопросу; а два слова «はし» с разными переводами неразличимы по вопросу).
  */
-function sameQuestion(card: LearnCard, other: LearnCard, direction: Direction): boolean {
+export function sameQuestion(card: LearnCard, other: LearnCard, direction: Direction): boolean {
   if (direction === 'def-to-term') {
-    const mine = normalizeDefinition(card.definition);
-    return mine !== '' && normalizeDefinition(other.definition) === mine;
+    const mine = new Set(definitionVariants(card.definition));
+    return definitionVariants(other.definition).some((v) => mine.has(v));
   }
   const mine = japaneseKeys(card);
   for (const k of japaneseKeys(other)) if (mine.has(k)) return true;
   return false;
 }
 
+/** Допустимые ответы (в нормализованном виде) на вопрос про карточку и все карточки, на которые вопрос отвечает так же. */
+export function acceptedKeys(card: LearnCard, direction: Direction, deck: readonly LearnCard[]): Set<string> {
+  const same = deck.filter((c) => c.id !== card.id && sameQuestion(card, c, direction));
+  const out = new Set<string>();
+  for (const c of [card, ...same]) {
+    if (direction === 'term-to-def') {
+      for (const v of definitionVariants(c.definition)) out.add(v);
+    } else {
+      for (const f of japaneseKeys(c)) out.add(f);
+    }
+  }
+  return out;
+}
+
+/**
+ * Совпадает ли с допустимыми ответами то, что показывает вариант или утверждение про карточку other: перевод (любой
+ * вариант через «,» «;» «/», в том числе без скобок), для слова его записи, а при withReading ещё и чтения.
+ * Так «находиться» не станет обманкой к «быть; находиться», а «し» к «よん/し».
+ */
+export function showsAcceptedAnswer(accepted: ReadonlySet<string>, other: LearnCard, direction: Direction, withReading: boolean): boolean {
+  const keys =
+    direction === 'term-to-def'
+      ? definitionVariants(other.definition)
+      : [...japaneseForms(other.term), ...(withReading && other.reading !== undefined ? japaneseForms(other.reading) : [])];
+  return keys.some((k) => accepted.has(k));
+}
+
 /**
  * Верный вариант и три обманки из той же колоды: без повторов и без совпадения с верным; карточки, у которых
- * сторона вопроса совпадает с верной (см. sameQuestion), в обманки не берутся. null: обманок не хватило.
+ * сторона вопроса совпадает с верной (см. sameQuestion), в обманки не берутся, как и карточки, чей вариант совпадает
+ * с допустимым ответом хотя бы одним из своих вариантов или записей (см. showsAcceptedAnswer). null: обманок не хватило.
  */
-function buildOptions(card: LearnCard, direction: Direction, deck: readonly LearnCard[], rng: Rng | undefined): ChoiceOption[] | null {
+export function buildOptions(card: LearnCard, direction: Direction, deck: readonly LearnCard[], rng: Rng | undefined): ChoiceOption[] | null {
   const seen = new Set<string>([optionKey(card, direction)]);
   // Слово, совпадающее с чтением верной карточки (みず для 水), тоже было бы верным ответом: в обманки не берём.
   if (direction === 'def-to-term' && card.reading) seen.add(normalizeJapanese(card.reading));
+  const accepted = acceptedKeys(card, direction, deck);
   const distractors: ChoiceOption[] = [];
   for (const c of shuffle(
-    deck.filter((x) => x.id !== card.id && !sameQuestion(card, x, direction)),
+    deck.filter((x) => x.id !== card.id && !sameQuestion(card, x, direction) && !showsAcceptedAnswer(accepted, x, direction, false)),
     rng,
   )) {
     const key = optionKey(c, direction);
@@ -399,9 +436,9 @@ export function submitTyped(s: LearnSession, text: string, ctx: Ctx): LearnSessi
   if (text.trim() === '') return s;
   const card = cardOf(s.state, q.cardId);
   if (q.direction === 'def-to-term') {
-    // Верны также слова других карточек колоды с тем же переводом (きれい и 美しい: «красивый»).
-    const key = normalizeDefinition(card.definition);
-    const same = key === '' ? [] : s.state.deck.filter((c) => c.id !== card.id && normalizeDefinition(c.definition) === key);
+    // Верны также слова других карточек колоды, отвечающих на тот же вопрос (きれい и 美しい: «красивый»,
+    // «красивый; чистый»).
+    const same = s.state.deck.filter((c) => c.id !== card.id && sameQuestion(card, c, 'def-to-term'));
     const res = checkTermAnswer(text, card, same);
     if (res.romajiHint) return { state: { ...s.state, hint: 'romaji' }, history: s.history };
     return answered(s, applyOutcome(s.state, { kind: res.correct ? 'correct' : 'wrong', given: text }, ctx.now));

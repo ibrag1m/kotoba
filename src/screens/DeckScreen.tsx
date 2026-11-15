@@ -7,6 +7,7 @@ import { db } from '../db/db';
 import { deleteDeck, getDeck, listCards } from '../db/repo';
 import { loadLearnInfo } from '../db/learnRepo';
 import { plural } from '../core/format';
+import { formatMatchTime } from '../core/match';
 import { attempt, deleteDeckErrorText } from '../core/errors';
 import ui from '../styles/ui.module.css';
 import s from './DeckScreen.module.css';
@@ -92,6 +93,27 @@ export function DeckScreen() {
           aria-disabled={cards.length === 0}
         >
           Заучивание
+        </Link>
+      </section>
+      <section className={s.practice} aria-label="Практика">
+        <Link
+          to={`/deck/${deck.id}/test`}
+          className={`${ui.btn} ${s.practiceBtn}`}
+          aria-disabled={cards.length === 0}
+        >
+          Тест
+        </Link>
+        <Link
+          to={`/deck/${deck.id}/match`}
+          className={`${ui.btn} ${s.practiceBtn}`}
+          aria-disabled={cards.length === 0}
+        >
+          <span>Подбор пар</span>
+          {deck.bestMatchMs !== undefined && (
+            <span className={s.bestTime} data-testid="best-match">
+              Лучшее: {formatMatchTime(deck.bestMatchMs)}
+            </span>
+          )}
         </Link>
       </section>
       {cards.length === 0 ? (

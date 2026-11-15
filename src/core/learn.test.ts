@@ -845,3 +845,80 @@ describe('случайные прогоны', () => {
     }
   });
 });
+
+describe('обманки: частичное совпадение переводов и записей', () => {
+  const filler = [1, 2, 3, 4].map((i) => card(100 + i));
+
+  /** Варианты первого вопроса по карточке target; null, если выбор собрать не из чего (этап выбора пропущен). */
+  function optionsFor(target: LearnCard, deck: LearnCard[], direction: 'term-to-def' | 'def-to-term', seed: number) {
+    const s = startPortion([target], deck, ctx({ rng: seededRng(seed) }), { directions: direction });
+    const q = s.state.question;
+    return q && q.stage === 'choice' ? q.options : null;
+  }
+
+  it('вопрос ある (слово → перевод): среди вариантов нет «быть; находиться (о живом)»', () => {
+    const iru = card(50, { term: 'いる', reading: undefined, definition: 'быть; находиться (о живом)' });
+    const aru = card(51, { term: 'ある', reading: undefined, definition: 'находиться' });
+    const deck = [iru, aru, ...filler];
+    let asked = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const forAru = optionsFor(aru, deck, 'term-to-def', seed);
+      const forIru = optionsFor(iru, deck, 'term-to-def', seed);
+      for (const [options, other] of [[forAru, iru], [forIru, aru]] as const) {
+        if (!options) continue;
+        asked++;
+        expect(options.map((o) => o.cardId)).not.toContain(other.id);
+      }
+    }
+    expect(asked).toBeGreaterThan(100);
+  });
+
+  it('вопрос «четыре» (перевод → слово, слово «よん/し»): среди вариантов нет «し», и наоборот', () => {
+    const yon = card(60, { term: 'よん/し', reading: undefined, definition: 'четыре' });
+    const shi = card(61, { term: 'し', reading: undefined, definition: 'смерть' });
+    const deck = [yon, shi, ...filler];
+    let asked = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      for (const [target, other] of [[yon, shi], [shi, yon]] as const) {
+        const options = optionsFor(target, deck, 'def-to-term', seed);
+        if (!options) continue;
+        asked++;
+        expect(options.map((o) => o.cardId)).not.toContain(other.id);
+      }
+    }
+    expect(asked).toBeGreaterThan(100);
+  });
+
+  it('вопрос «красивый» (перевод → слово): не бывает двух верных слов', () => {
+    const utsukushii = card(70, { term: '美しい', reading: 'うつくしい', definition: 'красивый' });
+    const kirei = card(71, { term: 'きれい', reading: undefined, definition: 'красивый; чистый' });
+    const deck = [utsukushii, kirei, ...filler];
+    let asked = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      for (const [target, other] of [[utsukushii, kirei], [kirei, utsukushii]] as const) {
+        const options = optionsFor(target, deck, 'def-to-term', seed);
+        if (!options) continue;
+        asked++;
+        expect(options.map((o) => o.cardId)).not.toContain(other.id);
+      }
+    }
+    expect(asked).toBeGreaterThan(100);
+  });
+
+  it('вырожденная колода: вариантов не набрать, этап выбора пропускается и вопрос идёт на ввод', () => {
+    // все четыре карточки отвечают на один вопрос по переводу
+    const deck = [0, 1, 2, 3].map((i) => card(80 + i, { definition: i === 0 ? 'один' : `один; вариант ${i}` }));
+    expect(optionsFor(deck[0] as LearnCard, deck, 'def-to-term', 1)).toBeNull();
+    const s = startPortion([deck[0] as LearnCard], deck, ctx({ rng: seededRng(1) }), { directions: 'def-to-term' });
+    expect(s.state.question?.stage).toBe('typing');
+  });
+
+  it('ввод: слово карточки с перекрывающимся переводом засчитывается («красивый» → きれい)', () => {
+    const utsukushii = card(90, { term: '美しい', reading: 'うつくしい', definition: 'красивый' });
+    const kirei = card(91, { term: 'きれい', reading: undefined, definition: 'красивый; чистый' });
+    const deck = [utsukushii, kirei];
+    const s = startPortion([utsukushii], deck, ctx({ rng: seededRng(1) }), { directions: 'def-to-term' });
+    expect(s.state.question?.stage).toBe('typing');
+    expect(submitTyped(s, 'きれい', ctx()).state.feedback?.kind).toBe('correct');
+  });
+});
